@@ -2,16 +2,15 @@ from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from pydantic import BaseModel
-
+from store import RedisStore
 from model import GroqService, GPTAssistant
 
 class ChatRequest(BaseModel):
     message: str
 
-# Initialize FastAPI app
 app = FastAPI()
+redis = RedisStore()
 
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,20 +18,22 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# Initialize models
+
 gpt_assistant = GPTAssistant()
 groq_service = GroqService()
 
-# Transcribe audio
+@app.get("/history")
+async def root():
+    return redis.get_history()
+
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile):
     return await groq_service.speech_to_text(file)
 
-# Chat with AI
 @app.post("/api/chat")
 async def chat_with_ai(request: ChatRequest):
     response = gpt_assistant.process_message(request.message)
-    print(response.choices[0].message.content)
+    redis.save_history(request.message, response.choices[0].message.content)
     return response.choices[0].message.content
 
 if __name__ == "__main__":
