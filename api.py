@@ -26,6 +26,10 @@ groq_service = GroqService()
 async def root():
     return redis.get_history()
 
+@app.get("/history/{id}")
+async def get_history_by_id(id: str):
+    return redis.get_history_by_id(id)
+
 @app.post("/api/transcribe")
 async def transcribe_audio(file: UploadFile):
     return await groq_service.speech_to_text(file)
